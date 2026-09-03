@@ -1,0 +1,25 @@
+.logo { color: var(--paper); text-decoration: none; }
+.auth-status { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .08em; color: rgba(241, 236, 223, .42); }
+.login-wrap { padding-top: 54px; }
+.login-wrap .auth-back { margin-bottom: 42px; }
+.login-kicker { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em; color: var(--stamp); margin-bottom: 13px; }
+.auth-head h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: clamp(30px, 6vw, 42px); line-height: 1.05; margin: 0 0 10px; }
+.auth-head p { max-width: 34ch; line-height: 1.55; }
+.auth-alt a { color: var(--paper); text-decoration: none; }
+.auth-alt a:hover { color: var(--stamp); }
+.form-messages { border-left: 3px solid var(--stamp); background: rgba(193, 68, 45, .1); color: var(--paper); font-size: 13px; line-height: 1.45; padding: 12px 14px; margin: -8px 0 22px; }
+.password-control { position: relative; }
+.login-input-shell, .password-control { position: relative; }
+.password-control input { padding-right: 68px; }
+.field input { caret-color: transparent; }
+.login-cursor { display: none; position: absolute; top: 50%; width: 7px; height: 14px; background: var(--paper); transform: translateY(-50%); pointer-events: none; animation: blink 1s step-end infinite; }
+.login-input-shell:focus-within .login-cursor, .password-control:focus-within .login-cursor { display: block; }
+.password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); border: 0; background: transparent; color: rgba(241, 236, 223, .55); cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 6px; text-transform: uppercase; }
+.password-toggle:hover, .password-toggle:focus-visible { color: var(--paper); }
+.password-toggle:focus-visible, .auth-back:focus-visible, .auth-alt a:focus-visible, .logo:focus-visible { outline: 2px solid var(--stamp); outline-offset: 4px; }
+.auth-submit { display: flex; align-items: center; justify-content: space-between; text-align: left; transition: background 160ms ease, transform 140ms ease; }
+.submit-arrow { font-size: 19px; line-height: 1; transition: transform 160ms ease; }
+.auth-submit:hover .submit-arrow { transform: translateX(4px); }
+.login-note { display: flex; align-items: flex-start; gap: 9px; border-top: 1px solid var(--line); margin-top: 34px; padding-top: 18px; color: rgba(241, 236, 223, .42); font-size: 11.5px; line-height: 1.5; }
+.note-mark { color: var(--stamp); }
+@media (max-width: 480px) { .topbar { padding-left: 18px; padding-right: 18px; } .auth-status { display: none; } .login-wrap { padding: 42px 20px 40px; } .login-wrap .auth-back { margin-bottom: 34px; } }

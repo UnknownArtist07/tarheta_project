@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tarheta — digital calling card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'hub/home.css' %}">
+</head>
+<body>
+<section class="screen active" id="screen-landing">
+  <div class="topbar in" id="topbar">
+    <div class="logo"><span class="dot"></span>tarheta</div>
+    <div class="navlinks" id="navLinks">
+      <a href="#about">About</a>
+      <a href="#">How it works</a>
+      <a href="#">Cards</a>
+      <a href="#">Pricing</a>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="window.location.href='{% url 'login' %}'">Log in</button>
+      <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div class="nav-scrim" id="navScrim"></div>
+  <div class="hero">
+    <div class="in" style="animation-delay:80ms">
+      <div class="eyebrow">DIGITAL CALLING CARD</div>
+      <h1 class="hero-h">One link.<br>Every way for people to <em>get to know you.</em></h1>
+      <p class="hero-sub">Build your own hub — add your calling card, redirects, photos, and videos. Share just one URL.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-stamp" onclick="window.location.href='{% url 'register' %}'">Create an account</button>
+        <button class="btn btn-ghost" onclick="window.location.href='{% url 'hub' %}'">See an example</button>
+      </div>
+    </div>
+    <div class="stage in" style="animation-delay:160ms">
+      <div class="float-card c"><div class="fc-kind">VIDEO</div><div class="fc-title">Intro Reel</div></div>
+      <div class="float-card b"><div class="fc-kind">LINK</div><div class="fc-title">School Portal</div></div>
+      <div class="float-card a"><div class="fc-kind">CONTACT</div><div class="fc-title">Juan Dela Cruz</div></div>
+    </div>
+  </div>
+  <div class="features">
+    <div class="feature reveal"><div class="fnum">01</div><h3>Your own hub URL</h3><p>tarheta.ph/username — one place for everything you want to share, easy to print as a QR code or type into a browser.</p></div>
+    <div class="feature reveal" style="transition-delay:80ms"><div class="fnum">02</div><h3>Digital calling card</h3><p>Full name, mobile number, socials, school — all in one flippable card you can tap to reveal the details.</p></div>
+    <div class="feature reveal" style="transition-delay:160ms"><div class="fnum">03</div><h3>Cards that take action</h3><p>Redirect links, photos, videos — each card has its own behavior when clicked. Add whatever you need.</p></div>
+  </div>
+  <div class="stats">
+    <div class="stat reveal-scale"><div class="stat-num" data-target="{{ hub_count }}" data-suffix="">0</div><div class="stat-label">HUBS CREATED</div></div>
+    <div class="stat reveal-scale" style="transition-delay:80ms"><div class="stat-num" data-target="{{ card_count }}" data-suffix="">0</div><div class="stat-label">CARDS PUBLISHED</div></div>
+    <div class="stat reveal-scale" style="transition-delay:160ms"><div class="stat-num" data-target="{{ profile_count }}" data-suffix="">0</div><div class="stat-label">PROFILES COMPLETED</div></div>
+    <div class="stat reveal-scale" style="transition-delay:240ms"><div class="stat-num" data-target="{{ media_count }}" data-suffix="">0</div><div class="stat-label">IMAGES SHARED</div></div>
+  </div>
+  <div class="about" id="about">
+    <div class="about-head reveal"><div class="eyebrow">ABOUT TARHETA</div><h2>Your identity, on one card.</h2><p>tarheta (from "tarjeta," calling card) is a digital calling card and link-in-bio hub built for students, professionals, and organizations across the Philippines. Instead of handing out paper business cards or juggling a dozen different links, you get one shareable URL that carries everything people need to know about you.</p></div>
+    <div class="about-grid">
+      <div class="about-card reveal"><div class="ac-icon">◆</div><h4>Why we built it</h4><p>Paper calling cards get lost, and a bio full of links is messy. We wanted one clean, tappable place — your name, your contacts, your work — that updates instantly and never runs out.</p></div>
+      <div class="about-card reveal" style="transition-delay:80ms"><div class="ac-icon">◆</div><h4>Who it's for</h4><p>Students building a portfolio, org officers sharing event links, freelancers sending one URL instead of five. If you introduce yourself often, tarheta is for you.</p></div>
+    </div>
+    <div class="accordion reveal">
+      <div class="acc-item"><button class="acc-trigger">Our mission <span class="acc-plus">+</span></button><div class="acc-panel"><div class="acc-panel-inner">To give every student and professional a free, permanent digital identity — one link that's easy to share, easy to update, and always current, no matter how many times your contact details change.</div></div></div>
+      <div class="acc-item"><button class="acc-trigger">How the hub works <span class="acc-plus">+</span></button><div class="acc-panel"><div class="acc-panel-inner">When you sign up, you get a personal URL at tarheta.ph/yourname. From your hub you can build a flippable digital calling card and add unlimited cards — links, photos, or videos — that visitors can tap to open.</div></div></div>
+      <div class="acc-item"><button class="acc-trigger">Is it really free? <span class="acc-plus">+</span></button><div class="acc-panel"><div class="acc-panel-inner">Yes. The core hub — your calling card and your first set of cards — is free for everyone. We may introduce optional paid customizations later, but a working hub will always be free to create.</div></div></div>
+      <div class="acc-item"><button class="acc-trigger">Where we're headed <span class="acc-plus">+</span></button><div class="acc-panel"><div class="acc-panel-inner">We're actively building analytics for your hub, team/organization pages, and printable QR codes for your calling card — so your one link works just as well on a poster as it does in a text message.</div></div></div>
+    </div>
+  </div>
+  <div class="foot-cta in" style="animation-delay:60ms"><h2>Ready to build your own hub?</h2><button class="btn btn-stamp" onclick="window.location.href='{% url 'register' %}'">Get started — it's free</button></div>
+</section>
+<button class="to-top" id="toTop" aria-label="Back to top">↑</button>
+<div class="toast" id="toast"></div>
+<script src="{% static 'hub/home.js' %}"></script>
+</body>
+</html>

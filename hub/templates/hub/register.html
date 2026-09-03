@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tarheta — create an account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'hub/register.css' %}">
+</head>
+<body>
+<section class="screen active" id="screen-register">
+  <div class="topbar"><div class="logo"><span class="dot"></span>tarheta</div><div></div><div></div></div>
+  <div class="auth-wrap">
+    <button class="auth-back" onclick="window.location.href='{% url 'home' %}'">← Back</button>
+    <div class="auth-head"><h2>Create an account</h2><p>It only takes a few seconds. The basic hub is free.</p></div>
+    {% if messages %}<div class="form-messages">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
+    <form id="regForm" method="post">
+      {% csrf_token %}
+      <div class="field"><label for="regName">Full name</label><input type="text" id="regName" name="full_name" placeholder="Juan Dela Cruz" required oninput="syncUsername()"></div>
+      <div class="field"><label for="regUser">Username (for your hub URL)</label><input type="text" id="regUser" name="username" placeholder="juandelacruz" required oninput="syncUrl()"></div>
+      <div class="url-preview">tarheta.ph/<span class="u" id="urlPreview">username</span><span class="cursor"></span></div>
+      <div class="field"><label for="regEmail">Email</label><input type="email" id="regEmail" name="email" placeholder="juan@email.com" required></div>
+      <div class="field"><label for="regPassword">Password</label><input type="password" id="regPassword" name="password" placeholder="••••••••" minlength="12" pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,}" title="Use at least 12 characters with one capital letter, one number, and one special character." required><div class="password-rule" id="passwordRule">12+ characters · 1 capital · 1 number · 1 special character</div></div>
+      <button class="btn btn-stamp btn-block auth-submit" type="submit">Create my hub</button>
+      <div class="auth-alt">Already have an account? <a href="{% url 'login' %}" style="color:var(--paper); text-decoration:underline;">Log in</a></div>
+    </form>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
+<script src="{% static 'hub/register.js' %}"></script>
+</body>
+</html>

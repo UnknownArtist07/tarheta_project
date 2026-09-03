@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tarheta — log in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'hub/register.css' %}">
+<link rel="stylesheet" href="{% static 'hub/login.css' %}">
+</head>
+<body>
+<section class="screen active" id="screen-login">
+  <div class="topbar"><a class="logo" href="{% url 'home' %}"><span class="dot"></span>tarheta</a><div class="auth-status">SECURE ACCESS</div></div>
+  <main class="auth-wrap login-wrap">
+    <a class="auth-back" href="{% url 'home' %}">← Back to home</a>
+    <div class="auth-head">
+      <div class="login-kicker">WELCOME BACK</div>
+      <h1>Log in to your hub.</h1>
+      <p>Pick up where you left off and keep your identity current.</p>
+    </div>
+    {% if messages %}<div class="form-messages" role="alert">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
+    <form id="loginForm" method="post">
+      {% csrf_token %}
+      <div class="field"><label for="loginUser">Username</label><div class="login-input-shell"><input type="text" id="loginUser" name="username" placeholder="juandelacruz" autocomplete="username" required autofocus><span class="login-cursor" aria-hidden="true"></span></div></div>
+      <div class="field password-field"><label for="loginPassword">Password</label><div class="password-control"><input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required><span class="login-cursor" aria-hidden="true"></span><button class="password-toggle" type="button" id="passwordToggle" aria-label="Show password" aria-pressed="false">Show</button></div></div>
+      <button class="btn btn-stamp btn-block auth-submit" type="submit"><span>Enter my hub</span><span class="submit-arrow" aria-hidden="true">→</span></button>
+    </form>
+    <div class="auth-alt">New to tarheta? <a href="{% url 'register' %}">Create an account</a></div>
+    <div class="login-note"><span class="note-mark">✦</span><span>Your account is protected with a securely hashed password.</span></div>
+  </main>
+</section>
+<script src="{% static 'hub/login.js' %}"></script>
+</body>
+</html>

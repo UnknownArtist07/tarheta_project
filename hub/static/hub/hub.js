@@ -46,8 +46,9 @@ function bindCards() {
       card.style.transform = 'perspective(600px) rotateX(0) rotateY(0)';
     };
     card.onclick = event => {
-      if (event.target.closest('.card-delete')) return;
-      if (card.dataset.href) window.open(card.dataset.href, '_blank', 'noopener,noreferrer');
+      if (event.target.closest('.card-delete, .card-active, .card-edit')) return;
+      if (card.dataset.image) window.open(card.dataset.image, '_blank', 'noopener,noreferrer');
+      else if (card.dataset.href) window.open(card.dataset.href, '_blank', 'noopener,noreferrer');
       else showToast(card.dataset.msg);
     };
   });
@@ -68,8 +69,13 @@ function bindCards() {
 
 function copyLink(event) {
   event.stopPropagation();
-  const link = `${window.location.origin}/hub/`;
+  const link = `${window.location.origin}/u/${document.getElementById('hubUrl')?.textContent || ''}`;
   navigator.clipboard.writeText(link).then(() => showToast('Hub link copied!')).catch(() => showToast(link));
+}
+
+function copyPublicLink() {
+  const link = `${window.location.origin}/u/${document.getElementById('hubUrl')?.textContent || ''}`;
+  navigator.clipboard.writeText(link).then(() => showToast('Public hub link copied!')).catch(() => showToast(link));
 }
 
 function bindModals() {
@@ -117,6 +123,7 @@ if (socialRows && addSocial) {
 let toastTimer;
 function showToast(message) {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.classList.add('show');
   clearTimeout(toastTimer);

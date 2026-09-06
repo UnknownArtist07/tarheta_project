@@ -1,10 +1,12 @@
 from django.contrib import messages
-from django.shortcuts import redirect, render
+from django.db.models import F
+from django.shortcuts import get_object_or_404, redirect, render
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from urllib.parse import urlparse
 
 from .models import HubCard, TarhetaAccount
+from subscriptions.models import Plan, UserSubscription
 
 
 def get_session_account(request):
@@ -44,6 +46,7 @@ def home(request):
 		'card_count': HubCard.objects.count(),
 		'profile_count': accounts.exclude(bio='').count(),
 		'media_count': HubCard.objects.exclude(image='').count(),
+		'plans': Plan.objects.filter(is_active=True),
 	})
 
 
@@ -79,6 +82,9 @@ def register(request):
 			)
 			account.set_password(raw_password)
 			account.save()
+			free_plan = Plan.objects.filter(name='Free', is_active=True).first()
+			if free_plan:
+				UserSubscription.objects.create(account=account, plan=free_plan)
 			request.session['tarheta_account_id'] = account.id
 			return redirect('hub')
 
@@ -109,7 +115,36 @@ def hub(request):
 	account = get_session_account(request)
 	if not account:
 		return redirect('login')
-	return render(request, 'hub/hub.html', {'account': account, 'social_links': build_social_links(account), 'cards': account.cards.all()})
+	return render(request, 'hub/hub.html', {
+		'account': account,
+		'social_links': build_social_links(account),
+		'cards': account.cards.all(),
+		'plans': Plan.objects.filter(is_active=True),
+		'subscription': UserSubscription.objects.filter(account=account).select_related('plan').first(),
+	})
+
+
+def public_hub(request, username):
+	account = get_object_or_404(TarhetaAccount, username__iexact=username)
+	is_owner = get_session_account(request) == account
+	unlocked_key = f'public_hub_unlocked_{account.id}'
+	if request.method == 'POST' and account.hub_password_hash and request.POST.get('hub_password'):
+		if account.check_hub_password(request.POST['hub_password']):
+			request.session[unlocked_key] = True
+			return redirect('public_hub', username=account.username)
+		messages.error(request, 'That hub password is incorrect.')
+	if not is_owner and not account.hub_is_public:
+		return render(request, 'hub/public_private.html', {'account': account})
+	if not is_owner and account.hub_password_hash and not request.session.get(unlocked_key):
+		return render(request, 'hub/public_gate.html', {'account': account})
+	if not is_owner:
+		TarhetaAccount.objects.filter(id=account.id).update(hub_view_count=F('hub_view_count') + 1)
+	return render(request, 'hub/public_hub.html', {
+		'account': account,
+		'social_links': build_social_links(account),
+		'cards': account.cards.filter(is_active=True),
+		'is_public_view': True,
+	})
 
 
 def profile(request):
@@ -194,6 +229,21 @@ def settings(request):
 	return redirect('hub')
 
 
+def hub_settings(request):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	if request.method == 'POST':
+		account.hub_is_public = request.POST.get('hub_is_public') == 'on'
+		if request.POST.get('clear_hub_password') == 'on':
+			account.set_hub_password('')
+		elif request.POST.get('hub_password', ''):
+			account.set_hub_password(request.POST['hub_password'])
+		account.save(update_fields=['hub_is_public', 'hub_password_hash'])
+		messages.success(request, 'Hub settings updated.')
+	return redirect('hub')
+
+
 def create_card(request):
 	account = get_session_account(request)
 	if not account:
@@ -229,6 +279,18 @@ def delete_card(request, card_id):
 		if card:
 			card.delete()
 			messages.success(request, 'Card removed.')
+	return redirect('hub')
+
+
+def toggle_card(request, card_id):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	if request.method == 'POST':
+		card = HubCard.objects.filter(id=card_id, account=account).first()
+		if card:
+			card.is_active = not card.is_active
+			card.save(update_fields=['is_active'])
 	return redirect('hub')
 
 

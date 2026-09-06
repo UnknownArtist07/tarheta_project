@@ -58,6 +58,7 @@ h1.hero-h em { font-style: italic; color: var(--stamp); font-weight: 500; }
 .feature h3 { font-size: 19px; margin: 0 0 8px; }
 .feature p { font-size: 14px; line-height: 1.6; color: rgba(241, 236, 223, 0.62); margin: 0; }
 .foot-cta { width: 100%; margin: 0; padding: 70px 24px 90px; text-align: center; border-top: 1px solid var(--line); }
+.pricing { max-width: 1080px; margin: 0 auto; padding: 90px 24px; border-top: 1px solid var(--line); }.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }.pricing-card { padding: 26px; border: 1px solid var(--line); background: var(--ink-softer); }.pricing-card h3 { font: 500 28px 'Fraunces', serif; margin: 10px 0 4px; }.pricing-card strong { color: var(--stamp); }.pricing-card ul { min-height: 104px; margin: 22px 0; padding-left: 18px; color: rgba(241, 236, 223, .68); line-height: 1.8; font-size: 13px; } @media (max-width: 760px) { .pricing-grid { grid-template-columns: 1fr; } }
 .foot-cta h2 { font-size: clamp(26px, 3.4vw, 34px); margin: 0 0 22px; }
 .toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); background: var(--paper); color: var(--ink); padding: 10px 16px; border-radius: 3px; opacity: 0; pointer-events: none; transition: opacity 220ms ease, transform 220ms ease; z-index: 20; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }

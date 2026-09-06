@@ -17,6 +17,9 @@ class TarhetaAccount(models.Model):
 	card_title = models.CharField(max_length=80, blank=True)
 	card_role = models.CharField(max_length=120, blank=True)
 	card_theme = models.CharField(max_length=20, default='paper')
+	hub_is_public = models.BooleanField(default=True)
+	hub_password_hash = models.CharField(max_length=128, blank=True, null=True)
+	hub_view_count = models.PositiveIntegerField(default=0)
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	def set_password(self, raw_password):
@@ -28,6 +31,16 @@ class TarhetaAccount(models.Model):
 		from django.contrib.auth.hashers import check_password
 
 		return check_password(raw_password, self.password)
+
+	def set_hub_password(self, raw_password):
+		from django.contrib.auth.hashers import make_password
+
+		self.hub_password_hash = make_password(raw_password) if raw_password else None
+
+	def check_hub_password(self, raw_password):
+		from django.contrib.auth.hashers import check_password
+
+		return bool(self.hub_password_hash) and check_password(raw_password, self.hub_password_hash)
 
 	def __str__(self):
 		return self.username
@@ -45,10 +58,12 @@ class HubCard(models.Model):
 	subtitle = models.CharField(max_length=150, blank=True)
 	destination = models.URLField(blank=True)
 	image = models.ImageField(upload_to='cards/', blank=True)
+	order = models.PositiveIntegerField(default=0)
+	is_active = models.BooleanField(default=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	class Meta:
-		ordering = ('created_at', 'id')
+		ordering = ('order', 'created_at', 'id')
 
 	def __str__(self):
 		return self.title

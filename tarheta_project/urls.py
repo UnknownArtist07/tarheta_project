@@ -32,6 +32,9 @@ urlpatterns = [
     path('cards/new/', views.create_card, name='create_card'),
     path('cards/<int:card_id>/edit/', views.edit_card, name='edit_card'),
     path('cards/<int:card_id>/delete/', views.delete_card, name='delete_card'),
+    path('cards/<int:card_id>/toggle/', views.toggle_card, name='toggle_card'),
+    path('hub-settings/', views.hub_settings, name='hub_settings'),
+    path('u/<slug:username>/', views.public_hub, name='public_hub'),
     path('admin/', admin.site.urls),
 ]
 

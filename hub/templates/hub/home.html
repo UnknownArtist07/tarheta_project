@@ -17,7 +17,7 @@
       <a href="#about">About</a>
       <a href="#">How it works</a>
       <a href="#">Cards</a>
-      <a href="#">Pricing</a>
+      <a href="#pricing">Pricing</a>
     </div>
     <div class="topbar-actions">
       <button class="btn btn-ghost" onclick="window.location.href='{% url 'login' %}'">Log in</button>
@@ -65,6 +65,7 @@
       <div class="acc-item"><button class="acc-trigger">Where we're headed <span class="acc-plus">+</span></button><div class="acc-panel"><div class="acc-panel-inner">We're actively building analytics for your hub, team/organization pages, and printable QR codes for your calling card — so your one link works just as well on a poster as it does in a text message.</div></div></div>
     </div>
   </div>
+  <section class="pricing" id="pricing"><div class="about-head reveal"><div class="eyebrow">PRICING</div><h2>Start free. Grow when you are ready.</h2><p>Simple plans for a personal identity today, with more powerful tools coming soon.</p></div><div class="pricing-grid">{% for plan in plans %}<article class="pricing-card reveal"><div class="fnum">0{{ forloop.counter }}</div><h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><ul>{% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}</ul><button class="btn {% if plan.name == 'Free' %}btn-stamp{% else %}btn-ghost{% endif %}" onclick="window.location.href='{% url 'register' %}'">Get started</button></article>{% endfor %}</div></section>
   <div class="foot-cta in" style="animation-delay:60ms"><h2>Ready to build your own hub?</h2><button class="btn btn-stamp" onclick="window.location.href='{% url 'register' %}'">Get started — it's free</button></div>
 </section>
 <button class="to-top" id="toTop" aria-label="Back to top">↑</button>

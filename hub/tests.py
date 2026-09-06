@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from uuid import UUID
 
 from .models import HubCard, TarhetaAccount
+from subscriptions.models import UserSubscription
 
 
 class RegistrationTests(TestCase):
@@ -253,3 +254,66 @@ class HubWorkflowTests(TestCase):
 
 		self.assertRedirects(response, '/hub/')
 		self.assertFalse(HubCard.objects.filter(id=card.id).exists())
+
+	def test_public_hub_is_viewable_without_session(self):
+		self.client.get('/logout/')
+
+		response = self.client.get('/u/JUANDELACRUZ/')
+
+		self.assertContains(response, 'Juan Dela Cruz')
+		self.account.refresh_from_db()
+		self.assertEqual(self.account.hub_view_count, 1)
+
+	def test_private_hub_shows_private_message_to_visitors(self):
+		self.account.hub_is_public = False
+		self.account.save(update_fields=['hub_is_public'])
+		self.client.get('/logout/')
+
+		response = self.client.get('/u/juandelacruz/')
+
+		self.assertContains(response, 'This hub is private.')
+
+	def test_protected_hub_unlocks_for_session(self):
+		self.account.set_hub_password('Visitor-password-123!')
+		self.account.save(update_fields=['hub_password_hash'])
+		self.client.get('/logout/')
+
+		self.assertContains(self.client.get('/u/juandelacruz/'), 'password-protected')
+		self.client.post('/u/juandelacruz/', {'hub_password': 'wrong'})
+		response = self.client.post('/u/juandelacruz/', {'hub_password': 'Visitor-password-123!'})
+
+		self.assertRedirects(response, '/u/juandelacruz/')
+		self.assertContains(self.client.get('/u/juandelacruz/'), 'Juan Dela Cruz')
+
+	def test_owner_view_does_not_increment_hub_count(self):
+		self.client.get('/u/juandelacruz/')
+
+		self.account.refresh_from_db()
+		self.assertEqual(self.account.hub_view_count, 0)
+
+	def test_inactive_card_stays_on_dashboard_but_not_public_hub(self):
+		card = HubCard.objects.create(account=self.account, title='Hidden card', is_active=False)
+
+		self.assertContains(self.client.get('/hub/'), 'Hidden card')
+		self.client.get('/logout/')
+		self.assertNotContains(self.client.get('/u/juandelacruz/'), 'Hidden card')
+		card.delete()
+
+	def test_hub_settings_updates_visibility_and_password(self):
+		response = self.client.post('/hub-settings/', {
+			'hub_password': 'Visitor-password-123!',
+		})
+
+		self.assertRedirects(response, '/hub/')
+		self.account.refresh_from_db()
+		self.assertFalse(self.account.hub_is_public)
+		self.assertTrue(self.account.check_hub_password('Visitor-password-123!'))
+
+	def test_registration_receives_free_subscription(self):
+		self.client.get('/logout/')
+		self.client.post('/register/', {
+			'full_name': 'New User', 'username': 'newuser', 'email': 'new@example.com',
+			'password': 'Strong-password-123!',
+		})
+
+		self.assertEqual(UserSubscription.objects.get(account__username='newuser').plan.name, 'Free')

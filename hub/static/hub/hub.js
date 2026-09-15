@@ -67,10 +67,121 @@ function bindCards() {
   });
 }
 
-function copyLink(event) {
-  event.stopPropagation();
-  const link = `${window.location.origin}/u/${document.getElementById('hubUrl')?.textContent || ''}`;
-  navigator.clipboard.writeText(link).then(() => showToast('Hub link copied!')).catch(() => showToast(link));
+function bindFunctionEditor() {
+  const modal = document.getElementById('functionCardsModal');
+  const launch = document.getElementById('editFunctionCards');
+  if (!modal || !launch) return;
+  const sections = modal.querySelectorAll('[data-function-section]');
+  const tabs = modal.querySelectorAll('[data-function-tab]');
+  const kind = modal.querySelector('#functionKind');
+  const csrfToken = modal.querySelector('#functionCardForm input[name="csrfmiddlewaretoken"]');
+  modal.querySelectorAll('#functionThemeForm, #functionSecurityForm').forEach(form => {
+    if (csrfToken && !form.querySelector('input[name="csrfmiddlewaretoken"]')) form.prepend(csrfToken.cloneNode(true));
+  });
+  const scheduleField = modal.querySelector('[data-function-field="schedule"]');
+  const scheduleEntries = [];
+  let editingScheduleIndex = null;
+  if (scheduleField) {
+    const scheduleJson = document.createElement('input');
+    scheduleJson.type = 'hidden';
+    scheduleJson.name = 'schedule_json';
+    scheduleJson.id = 'scheduleJson';
+    scheduleField.closest('form').appendChild(scheduleJson);
+    const addSchedule = document.createElement('button');
+    addSchedule.type = 'button';
+    addSchedule.className = 'btn btn-ghost schedule-add';
+    addSchedule.textContent = 'Add Schedule';
+    const scheduleList = document.createElement('div');
+    scheduleList.className = 'schedule-list';
+    scheduleList.id = 'scheduleList';
+    scheduleField.append(addSchedule, scheduleList);
+    scheduleField.querySelectorAll('[name^="schedule_"]').forEach(input => input.removeAttribute('name'));
+    const getScheduleEntry = () => ({
+      day: modal.querySelector('#scheduleDay').value,
+      subject: modal.querySelector('#scheduleSubject').value.trim(),
+      time: modal.querySelector('#scheduleTime').value.trim(),
+      professor: modal.querySelector('#scheduleProfessor').value.trim(),
+      description: modal.querySelector('#scheduleDescription').value.trim(),
+    });
+    const clearScheduleInputs = () => ['scheduleSubject', 'scheduleTime', 'scheduleProfessor', 'scheduleDescription'].forEach(id => { modal.querySelector(`#${id}`).value = ''; });
+    const renderSchedules = () => {
+      scheduleJson.value = JSON.stringify(scheduleEntries);
+      scheduleList.innerHTML = '';
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      days.filter(day => scheduleEntries.some(entry => entry.day === day)).forEach(day => {
+        const group = document.createElement('div');
+        group.className = 'schedule-day-group';
+        group.innerHTML = `<h4>${day}</h4>`;
+        scheduleEntries.forEach((entry, index) => {
+          if (entry.day !== day) return;
+          const row = document.createElement('div');
+          row.className = 'schedule-entry';
+          row.innerHTML = `<div><strong>${entry.subject || 'Untitled subject'}</strong><span>${entry.time || 'Time not set'}${entry.professor ? ` · ${entry.professor}` : ''}</span>${entry.description ? `<small>${entry.description}</small>` : ''}</div><div class="schedule-entry-actions"><button type="button" data-schedule-edit="${index}">Edit</button><button type="button" data-schedule-remove="${index}">Remove</button></div>`;
+          group.appendChild(row);
+        });
+        scheduleList.appendChild(group);
+      });
+    };
+    addSchedule.addEventListener('click', () => {
+      const entry = getScheduleEntry();
+      if (!entry.subject) return;
+      if (editingScheduleIndex === null) scheduleEntries.push(entry);
+      else { scheduleEntries[editingScheduleIndex] = entry; editingScheduleIndex = null; addSchedule.textContent = 'Add Schedule'; }
+      clearScheduleInputs();
+      renderSchedules();
+    });
+    scheduleList.addEventListener('click', event => {
+      const editIndex = event.target.dataset.scheduleEdit;
+      const removeIndex = event.target.dataset.scheduleRemove;
+      if (editIndex !== undefined) {
+        const entry = scheduleEntries[Number(editIndex)];
+        modal.querySelector('#scheduleDay').value = entry.day;
+        modal.querySelector('#scheduleSubject').value = entry.subject;
+        modal.querySelector('#scheduleTime').value = entry.time;
+        modal.querySelector('#scheduleProfessor').value = entry.professor;
+        modal.querySelector('#scheduleDescription').value = entry.description;
+        editingScheduleIndex = Number(editIndex);
+        addSchedule.textContent = 'Update Schedule';
+      } else if (removeIndex !== undefined) { scheduleEntries.splice(Number(removeIndex), 1); renderSchedules(); }
+    });
+    renderSchedules();
+  }
+  const updateFields = () => modal.querySelectorAll('[data-function-field]').forEach(field => {
+    field.hidden = field.dataset.functionField !== kind.value && !(field.dataset.functionField === 'destination' && kind.value === 'link');
+  });
+  const selectCard = choice => {
+    const card = document.querySelector(`.card[data-card-id="${choice.dataset.cardId}"]`);
+    if (!card) return;
+    modal.querySelector('#functionTitle').value = card.querySelector('.card-title')?.textContent.trim() || '';
+    modal.querySelector('#functionSubtitle').value = card.querySelector('.card-sub')?.textContent.trim() || '';
+    modal.querySelector('#functionDestination').value = card.dataset.href || '';
+    modal.querySelector('#functionCardForm').action = `/cards/${choice.dataset.cardId}/update-function/`;
+    modal.querySelector('#functionThemeForm').action = `/cards/${choice.dataset.cardId}/update-function/`;
+    modal.querySelector('#functionSecurityForm').action = `/cards/${choice.dataset.cardId}/update-function/`;
+    modal.querySelector('#deleteFunctionCardForm').action = `/cards/${choice.dataset.cardId}/delete-function/`;
+    modal.querySelector('#deleteFunctionCard').disabled = false;
+    modal.querySelectorAll('.function-card-choice').forEach(item => item.classList.toggle('selected', item === choice));
+    kind.value = card.classList.contains('image') ? 'image' : card.classList.contains('media') ? 'video' : 'link';
+    const savedSchedule = document.querySelector(`#scheduleData span[data-card-id="${choice.dataset.cardId}"]`)?.dataset.schedule;
+    scheduleEntries.splice(0, scheduleEntries.length);
+    if (savedSchedule) {
+      try {
+        const parsedSchedule = JSON.parse(savedSchedule);
+        if (Array.isArray(parsedSchedule)) scheduleEntries.push(...parsedSchedule);
+        else if (parsedSchedule && typeof parsedSchedule === 'object') scheduleEntries.push(parsedSchedule);
+      } catch (error) { scheduleEntries.length = 0; }
+    }
+    renderSchedules();
+    updateFields();
+  };
+  launch.addEventListener('click', () => { modal.hidden = false; document.body.style.overflow = 'hidden'; });
+  modal.querySelectorAll('.function-card-choice').forEach(choice => choice.addEventListener('click', () => selectCard(choice)));
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(item => item.classList.toggle('active', item === tab));
+    sections.forEach(section => { const active = section.dataset.functionSection === tab.dataset.functionTab; section.hidden = !active; section.classList.toggle('active', active); });
+  }));
+  kind.addEventListener('change', updateFields);
+  updateFields();
 }
 
 function copyPublicLink() {
@@ -90,6 +201,22 @@ function bindModals() {
     modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal); });
   });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') modals.forEach(modal => { if (!modal.hidden) closeModal(modal); }); });
+}
+
+function bindEditorTabs() {
+  const editor = document.getElementById('cardModal');
+  if (!editor) return;
+  editor.addEventListener('click', event => {
+    const tab = event.target.closest('[data-editor-tab]');
+    if (!tab) return;
+    const target = tab.dataset.editorTab;
+    editor.querySelectorAll('[data-editor-tab]').forEach(item => item.classList.toggle('active', item === tab));
+    editor.querySelectorAll('[data-editor-section]').forEach(section => {
+      const active = section.dataset.editorSection === target;
+      section.hidden = !active;
+      section.classList.toggle('active', active);
+    });
+  });
 }
 
 const avatarInput = document.getElementById('avatarInput');
@@ -131,3 +258,5 @@ function showToast(message) {
 }
 
 bindModals();
+bindEditorTabs();
+bindFunctionEditor();

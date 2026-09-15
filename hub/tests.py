@@ -1,5 +1,7 @@
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth.hashers import check_password
+import json
 from uuid import UUID
 
 from .models import HubCard, TarhetaAccount
@@ -125,6 +127,8 @@ class HubWorkflowTests(TestCase):
 		self.assertContains(response, 'Juan Dela Cruz')
 		self.assertContains(response, str(self.account.public_id)[:8].upper())
 		self.assertIsInstance(UUID(str(self.account.public_id)), UUID)
+		self.assertContains(response, 'What do you want to edit?')
+		self.assertNotContains(response, 'class="pane active"')
 
 	def test_hub_renders_clickable_social_icons(self):
 		self.account.socials = [{'platform': 'instagram', 'handle': '@juan'}]
@@ -134,6 +138,95 @@ class HubWorkflowTests(TestCase):
 
 		self.assertContains(response, 'class="social-icon social-instagram"')
 		self.assertContains(response, 'href="https://instagram.com/juan"')
+
+	def test_card_editor_contains_sidebar_tabs(self):
+		response = self.client.get('/hub/')
+
+		self.assertContains(response, 'data-editor-tab="calling-card"')
+		self.assertContains(response, 'data-editor-tab="socials"')
+		self.assertContains(response, 'data-editor-tab="theme"')
+		self.assertContains(response, 'data-editor-tab="about"')
+		self.assertNotContains(response, 'onclick="copyLink(event)"')
+		self.assertNotContains(response, '<label>Phone<input')
+
+	def test_editor_tabs_save_partial_account_details(self):
+		self.client.post('/card/', {'card_title': 'Juan', 'card_role': 'Designer'})
+		self.client.post('/profile/', {
+			'phone': '09171234567', 'card_email': 'juan.card@example.com',
+			'school': 'PUP', 'age': '25', 'birthday': '2001-04-12',
+		})
+		self.client.post('/card/', {'card_theme': 'moss'})
+
+		self.account.refresh_from_db()
+		self.assertEqual(self.account.phone, '09171234567')
+		self.assertEqual(self.account.card_email, 'juan.card@example.com')
+		self.assertEqual(self.account.school, 'PUP')
+		self.assertEqual(self.account.age, 25)
+		self.assertEqual(self.account.birthday.isoformat(), '2001-04-12')
+		self.assertEqual(self.account.card_title, 'Juan')
+		self.assertEqual(self.account.card_theme, 'moss')
+
+	def test_function_card_editor_replaces_inline_controls(self):
+		HubCard.objects.create(account=self.account, title='Portfolio', kind='link', destination='https://example.com')
+
+		response = self.client.get('/hub/')
+
+		self.assertContains(response, 'Edit function cards')
+		self.assertContains(response, 'General overview')
+		self.assertContains(response, 'data-function-tab="infos"')
+		self.assertContains(response, 'data-function-tab="theme"')
+		self.assertContains(response, 'data-function-tab="security"')
+		self.assertNotContains(response, 'Hide from hub')
+		self.assertNotContains(response, 'class="card-delete"')
+
+	def test_function_card_updates_media_theme_schedule_and_password(self):
+		card = HubCard.objects.create(account=self.account, title='Old title', kind='link')
+
+		response = self.client.post(f'/cards/{card.id}/update-function/', {
+			'title': 'Math class', 'kind': 'schedule', 'subtitle': 'Weekly class',
+			'card_theme': 'night', 'schedule_day': 'Monday', 'schedule_subject': 'Math',
+			'schedule_time': '09:00', 'schedule_professor': 'Prof. Cruz',
+			'schedule_description': 'Bring your calculator', 'card_password': 'card-secret',
+		})
+
+		card.refresh_from_db()
+		self.assertRedirects(response, '/hub/')
+		self.assertEqual(card.kind, 'schedule')
+		self.assertEqual(card.schedule[0]['subject'], 'Math')
+		self.assertEqual(card.card_theme, 'night')
+		self.assertTrue(check_password('card-secret', card.password_hash))
+
+	def test_function_card_saves_multiple_schedule_entries(self):
+		card = HubCard.objects.create(account=self.account, title='Weekly classes', kind='schedule')
+		schedule = [
+			{'day': 'Tuesday', 'subject': 'Physics', 'time': '10:00', 'professor': 'Prof. Lee', 'description': ''},
+			{'day': 'Monday', 'subject': 'Math', 'time': '09:00', 'professor': 'Prof. Cruz', 'description': 'Room 2'},
+		]
+
+		self.client.post(f'/cards/{card.id}/update-function/', {
+			'title': 'Weekly classes', 'kind': 'schedule', 'schedule_json': json.dumps(schedule),
+		})
+
+		card.refresh_from_db()
+		self.assertEqual(card.schedule, schedule)
+
+	def test_function_card_theme_upload_accepts_cover_image(self):
+		card = HubCard.objects.create(account=self.account, title='Cover card', kind='link')
+		cover = SimpleUploadedFile(
+			'cover.png',
+			b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0dIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82',
+			content_type='image/png',
+		)
+
+		response = self.client.post(f'/cards/{card.id}/update-function/', {
+			'card_theme': 'night', 'cover_image': cover,
+		})
+
+		card.refresh_from_db()
+		self.assertRedirects(response, '/hub/')
+		self.assertEqual(card.card_theme, 'night')
+		self.assertEqual(card.cover_image.name, 'cards/covers/cover.png')
+		self.addCleanup(card.cover_image.delete, save=False)
 
 	def test_profile_and_card_updates_are_persisted(self):
 		self.client.post('/profile/', {
@@ -166,6 +259,7 @@ class HubWorkflowTests(TestCase):
 
 		self.account.refresh_from_db()
 		self.assertEqual(self.account.avatar_url.name, 'avatars/avatar.png')
+		self.assertContains(self.client.get('/hub/'), 'src="/media/avatars/avatar.png"')
 		self.addCleanup(self.account.avatar_url.delete, save=False)
 
 	def test_settings_updates_email_and_password(self):

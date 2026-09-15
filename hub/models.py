@@ -13,6 +13,8 @@ class TarhetaAccount(models.Model):
 	phone = models.CharField(max_length=40, blank=True)
 	socials = models.JSONField(default=list, blank=True)
 	school = models.CharField(max_length=150, blank=True)
+	age = models.PositiveIntegerField(blank=True, null=True)
+	birthday = models.DateField(blank=True, null=True)
 	card_email = models.EmailField(blank=True)
 	card_title = models.CharField(max_length=80, blank=True)
 	card_role = models.CharField(max_length=120, blank=True)
@@ -50,6 +52,9 @@ class HubCard(models.Model):
 	CARD_TYPES = (
 		('link', 'Link'),
 		('image', 'Image'),
+		('video', 'Video'),
+		('audio', 'MP3'),
+		('schedule', 'Class schedule'),
 		('media', 'Video'),
 	)
 	account = models.ForeignKey(TarhetaAccount, on_delete=models.CASCADE, related_name='cards')
@@ -58,6 +63,12 @@ class HubCard(models.Model):
 	subtitle = models.CharField(max_length=150, blank=True)
 	destination = models.URLField(blank=True)
 	image = models.ImageField(upload_to='cards/', blank=True)
+	video_file = models.FileField(upload_to='cards/video/', blank=True)
+	audio_file = models.FileField(upload_to='cards/audio/', blank=True)
+	cover_image = models.ImageField(upload_to='cards/covers/', blank=True)
+	card_theme = models.CharField(max_length=20, default='paper')
+	schedule = models.JSONField(default=list, blank=True)
+	password_hash = models.CharField(max_length=128, blank=True)
 	order = models.PositiveIntegerField(default=0)
 	is_active = models.BooleanField(default=True)
 	created_at = models.DateTimeField(auto_now_add=True)

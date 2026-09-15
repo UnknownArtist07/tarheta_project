@@ -3,6 +3,9 @@ from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.contrib.auth.hashers import make_password, check_password
+from datetime import date
+import json
 from urllib.parse import urlparse
 
 from .models import HubCard, TarhetaAccount
@@ -152,28 +155,53 @@ def profile(request):
 	if not account:
 		return redirect('login')
 	if request.method == 'POST':
-		account.full_name = request.POST.get('full_name', '').strip()
+		update_fields = []
+		if 'full_name' in request.POST:
+			account.full_name = request.POST.get('full_name', '').strip()
+			update_fields.append('full_name')
 		if request.FILES.get('avatar'):
 			account.avatar_url = request.FILES['avatar']
-		account.bio = request.POST.get('bio', '').strip()
-		account.phone = request.POST.get('phone', '').strip()
-		platforms = request.POST.getlist('social_platform')
-		handles = request.POST.getlist('social_handle')
-		account.socials = [
-			{'platform': platform, 'handle': handle.strip()}
-			for platform, handle in zip(platforms, handles)
-			if platform and handle.strip()
-		]
-		account.school = request.POST.get('school', '').strip()
+			update_fields.append('avatar_url')
+		if 'bio' in request.POST:
+			account.bio = request.POST.get('bio', '').strip()
+			update_fields.append('bio')
+		if 'phone' in request.POST:
+			account.phone = request.POST.get('phone', '').strip()
+			update_fields.append('phone')
+		if 'social_platform' in request.POST:
+			platforms = request.POST.getlist('social_platform')
+			handles = request.POST.getlist('social_handle')
+			account.socials = [
+				{'platform': platform, 'handle': handle.strip()}
+				for platform, handle in zip(platforms, handles)
+				if platform and handle.strip()
+			]
+			update_fields.append('socials')
+		if 'school' in request.POST:
+			account.school = request.POST.get('school', '').strip()
+			update_fields.append('school')
+		if 'age' in request.POST:
+			age = request.POST.get('age', '').strip()
+			account.age = int(age) if age else None
+			update_fields.append('age')
+		if 'birthday' in request.POST:
+			birthday = request.POST.get('birthday', '').strip()
+			account.birthday = date.fromisoformat(birthday) if birthday else None
+			update_fields.append('birthday')
+		if 'card_email' in request.POST:
+			account.card_email = request.POST.get('card_email', '').strip().lower()
+			update_fields.append('card_email')
 		if not account.full_name:
 			messages.error(request, 'Your full name is required.')
 		else:
 			try:
 				TarhetaAccount._meta.get_field('avatar_url').clean(account.avatar_url, account)
-			except ValidationError:
-				messages.error(request, 'Please choose a valid image file.')
+				if account.card_email:
+					validate_email(account.card_email)
+			except (ValidationError, ValueError):
+				messages.error(request, 'Please enter valid profile details.')
 			else:
-				account.save(update_fields=['full_name', 'avatar_url', 'bio', 'phone', 'socials', 'school'])
+				account.save(update_fields=list(dict.fromkeys(update_fields)))
 				messages.success(request, 'Profile updated.')
 	return redirect('hub')
 
@@ -183,17 +211,26 @@ def card(request):
 	if not account:
 		return redirect('login')
 	if request.method == 'POST':
-		account.card_title = request.POST.get('card_title', '').strip()
-		account.card_role = request.POST.get('card_role', '').strip()
-		account.card_email = request.POST.get('card_email', '').strip().lower()
-		account.card_theme = request.POST.get('card_theme', 'paper')
+		update_fields = []
+		if 'card_title' in request.POST:
+			account.card_title = request.POST.get('card_title', '').strip()
+			update_fields.append('card_title')
+		if 'card_role' in request.POST:
+			account.card_role = request.POST.get('card_role', '').strip()
+			update_fields.append('card_role')
+		if 'card_email' in request.POST:
+			account.card_email = request.POST.get('card_email', '').strip().lower()
+			update_fields.append('card_email')
+		if 'card_theme' in request.POST:
+			account.card_theme = request.POST.get('card_theme', 'paper')
+			update_fields.append('card_theme')
 		if account.card_email:
 			try:
 				validate_email(account.card_email)
 			except ValidationError:
 				messages.error(request, 'Please enter a valid calling card email.')
 				return redirect('hub')
-		account.save(update_fields=['card_title', 'card_role', 'card_email', 'card_theme'])
+		account.save(update_fields=list(dict.fromkeys(update_fields)))
 		messages.success(request, 'Calling card updated.')
 	return redirect('hub')
 
@@ -253,19 +290,27 @@ def create_card(request):
 		destination = request.POST.get('destination', '').strip()
 		kind = request.POST.get('kind', 'link')
 		image = request.FILES.get('image')
+		video_file = request.FILES.get('video_file')
+		audio_file = request.FILES.get('audio_file')
+		if kind == 'media':
+			kind = 'video'
 		if not title:
 			messages.error(request, 'A card title is required.')
 		elif kind == 'image' and not image:
 			messages.error(request, 'Please choose an image for an image card.')
-		elif kind != 'image' and destination:
+		elif kind == 'video' and not video_file:
+			messages.error(request, 'Please choose an MP4 video.')
+		elif kind == 'audio' and not audio_file:
+			messages.error(request, 'Please choose an MP3 file.')
+		elif kind in ('link', 'schedule') and destination:
 			parsed = urlparse(destination)
 			if parsed.scheme not in ('http', 'https') or not parsed.netloc:
 				messages.error(request, 'Please enter a valid http or https card link.')
 			else:
-				HubCard.objects.create(account=account, kind=kind, title=title, subtitle=request.POST.get('subtitle', '').strip(), destination=destination, image=image)
+				HubCard.objects.create(account=account, kind=kind, title=title, subtitle=request.POST.get('subtitle', '').strip(), destination=destination, image=image, video_file=video_file, audio_file=audio_file)
 				messages.success(request, 'Card added.')
 		else:
-			HubCard.objects.create(account=account, kind=kind, title=title, subtitle=request.POST.get('subtitle', '').strip(), image=image)
+			HubCard.objects.create(account=account, kind=kind, title=title, subtitle=request.POST.get('subtitle', '').strip(), image=image, video_file=video_file, audio_file=audio_file)
 			messages.success(request, 'Card added.')
 	return redirect('hub')
 
@@ -291,6 +336,69 @@ def toggle_card(request, card_id):
 		if card:
 			card.is_active = not card.is_active
 			card.save(update_fields=['is_active'])
+	return redirect('hub')
+
+
+def update_function_card(request, card_id):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	card = HubCard.objects.filter(id=card_id, account=account).first()
+	if not card:
+		return redirect('hub')
+	if request.method == 'POST':
+		kind = request.POST.get('kind', card.kind)
+		if kind == 'media':
+			kind = 'video'
+		card.kind = kind
+		card.title = request.POST.get('title', '').strip()
+		card.subtitle = request.POST.get('subtitle', '').strip()
+		card.destination = request.POST.get('destination', '').strip()
+		card.card_theme = request.POST.get('card_theme', 'paper')
+		schedule_payload = request.POST.get('schedule_json', '')
+		try:
+			if schedule_payload:
+				card.schedule = json.loads(schedule_payload)
+			else:
+				legacy_entry = {
+					'day': request.POST.get('schedule_day', '').strip(),
+					'subject': request.POST.get('schedule_subject', '').strip(),
+					'time': request.POST.get('schedule_time', '').strip(),
+					'professor': request.POST.get('schedule_professor', '').strip(),
+					'description': request.POST.get('schedule_description', '').strip(),
+				}
+				card.schedule = [legacy_entry] if any(legacy_entry.values()) else []
+		except json.JSONDecodeError:
+			card.schedule = []
+		if request.FILES.get('image'):
+			card.image = request.FILES['image']
+		if request.POST.get('remove_image') == 'on':
+			card.image = None
+		if request.FILES.get('video_file'):
+			card.video_file = request.FILES['video_file']
+		if request.FILES.get('audio_file'):
+			card.audio_file = request.FILES['audio_file']
+		if request.FILES.get('cover_image'):
+			card.cover_image = request.FILES['cover_image']
+		if request.POST.get('remove_cover') == 'on':
+			card.cover_image = None
+		password = request.POST.get('card_password', '')
+		if password:
+			card.password_hash = make_password(password)
+		elif request.POST.get('clear_card_password') == 'on':
+			card.password_hash = ''
+		card.save()
+		messages.success(request, 'Function card updated.')
+	return redirect('hub')
+
+
+def delete_function_card(request, card_id):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	if request.method == 'POST':
+		HubCard.objects.filter(id=card_id, account=account).delete()
+		messages.success(request, 'Function card deleted.')
 	return redirect('hub')
 
 

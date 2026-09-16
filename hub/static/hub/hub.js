@@ -9,10 +9,187 @@ function flipCard() {
   document.getElementById('ccCard').classList.toggle('flipped');
 }
 
+const extraSocialPlatforms = {
+  discord: 'Discord', github: 'GitHub', behance: 'Behance', threads: 'Threads', whatsapp: 'WhatsApp', telegram: 'Telegram',
+};
+
+function addFormField(form, labelText, name, value, type = 'text') {
+  if (form.querySelector(`[name="${name}"]`)) return form.querySelector(`[name="${name}"]`);
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.type = type;
+  input.name = name;
+  input.value = value || '';
+  label.appendChild(input);
+  form.querySelector('.form-grid')?.appendChild(label);
+  return input;
+}
+
+function enhanceCallingCardEditor() {
+  const data = document.getElementById('hubCustomizationData');
+  const modal = document.getElementById('cardModal');
+  if (!data || !modal) return;
+  const callingForm = modal.querySelector('[data-editor-section="calling-card"] form');
+  const socialsForm = modal.querySelector('[data-editor-section="socials"] form');
+  const aboutForm = modal.querySelector('[data-editor-section="about"] form');
+  addFormField(callingForm, 'Nickname / display handle', 'display_handle', data.dataset.displayHandle);
+  addFormField(callingForm, 'Tagline / subtitle', 'card_tagline', data.dataset.cardTagline);
+  addFormField(aboutForm, 'Location', 'location', data.dataset.location);
+  addFormField(aboutForm, 'Pronouns', 'pronouns', data.dataset.pronouns);
+  if (aboutForm && !aboutForm.querySelector('.visible-card-fields')) {
+    const selected = data.dataset.visibleFields ? data.dataset.visibleFields.split(',') : [];
+    const fieldLabels = { phone: 'Phone', socials: 'Socials', school: 'Education', email: 'Email', location: 'Location', pronouns: 'Pronouns' };
+    const wrapper = document.createElement('fieldset');
+    wrapper.className = 'visible-card-fields wide';
+    const legend = document.createElement('legend');
+    legend.textContent = 'Show on public card';
+    wrapper.appendChild(legend);
+    Object.entries(fieldLabels).forEach(([field, labelText]) => {
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.name = 'card_visible_fields'; checkbox.value = field;
+      checkbox.checked = !selected.length || selected.includes(field);
+      label.append(checkbox, ` ${labelText}`);
+      wrapper.appendChild(label);
+    });
+    aboutForm.querySelector('.form-grid')?.appendChild(wrapper);
+  }
+  const socialRows = document.getElementById('socialRows');
+  if (socialsForm && socialRows) {
+    const renumberSocialRows = () => socialRows.querySelectorAll('.social-row').forEach((row, index) => {
+      row.querySelector('.social-visible')?.setAttribute('name', `social_visible_${index}`);
+      row.querySelector('.social-visibility-default')?.setAttribute('name', `social_visible_${index}`);
+    });
+    socialRows.querySelectorAll('.social-row').forEach((row, index) => {
+      row.draggable = true;
+      row.classList.add('social-sortable');
+      const select = row.querySelector('select');
+      Object.entries(extraSocialPlatforms).forEach(([value, label]) => {
+        if (!select.querySelector(`option[value="${value}"]`)) select.add(new Option(label, value));
+      });
+      if (!row.querySelector('.social-visible')) {
+        const hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.name = `social_visible_${index}`; hidden.value = 'off'; hidden.className = 'social-visibility-default';
+        const visible = document.createElement('input'); visible.type = 'checkbox'; visible.name = `social_visible_${index}`; visible.value = 'on'; visible.className = 'social-visible';
+        const label = document.createElement('label'); label.className = 'social-visibility'; label.append(visible, ' Show');
+        row.append(hidden, label);
+        const socialData = (() => { try { return JSON.parse(data.dataset.socials || '[]'); } catch (error) { return []; } })()[index];
+        visible.checked = !socialData || socialData.visible !== false;
+      }
+    });
+    let draggedRow;
+    socialRows.addEventListener('dragstart', event => { draggedRow = event.target.closest('.social-sortable'); });
+    socialRows.addEventListener('dragover', event => {
+      event.preventDefault();
+      const target = event.target.closest('.social-sortable');
+      if (target && target !== draggedRow) socialRows.insertBefore(draggedRow, target);
+      renumberSocialRows();
+    });
+    renumberSocialRows();
+  }
+  const card = document.getElementById('ccCard');
+  const frontDetails = card?.querySelector('.cc-name')?.parentElement;
+  if (frontDetails && !frontDetails.querySelector('.cc-handle')) {
+    if (data.dataset.displayHandle) { const handle = document.createElement('div'); handle.className = 'cc-handle'; handle.textContent = data.dataset.displayHandle; frontDetails.prepend(handle); }
+    if (data.dataset.cardTagline) { const tagline = document.createElement('div'); tagline.className = 'cc-tagline'; tagline.textContent = data.dataset.cardTagline; frontDetails.appendChild(tagline); }
+  }
+}
+
+function enhancePublicCallingCard() {
+  const data = document.getElementById('publicCustomizationData');
+  const card = document.getElementById('ccCard');
+  if (!data || !card) return;
+  const frontDetails = card.querySelector('.cc-name')?.parentElement;
+  if (frontDetails && !frontDetails.querySelector('.cc-handle')) {
+    if (data.dataset.displayHandle) { const handle = document.createElement('div'); handle.className = 'cc-handle'; handle.textContent = data.dataset.displayHandle; frontDetails.prepend(handle); }
+    if (data.dataset.cardTagline) { const tagline = document.createElement('div'); tagline.className = 'cc-tagline'; tagline.textContent = data.dataset.cardTagline; frontDetails.appendChild(tagline); }
+  }
+  const selected = data.dataset.visibleFields ? data.dataset.visibleFields.split(',') : [];
+  const visible = field => !selected.length || selected.includes(field);
+  const labels = { MOBILE: 'phone', SOCIALS: 'socials', SCHOOL: 'school', EMAIL: 'email' };
+  card.querySelectorAll('.cc-row').forEach(row => { const key = row.querySelector('.k')?.textContent.trim(); if (labels[key] && !visible(labels[key])) row.hidden = true; });
+  const details = card.querySelector('.cc-list');
+  [['LOCATION', data.dataset.location, 'location'], ['PRONOUNS', data.dataset.pronouns, 'pronouns']].forEach(([label, value, field]) => {
+    if (!value || !visible(field) || !details) return;
+    const row = document.createElement('div'); row.className = 'cc-row'; row.innerHTML = `<span class="k">${label}</span><span></span>`; row.lastElementChild.textContent = value; details.appendChild(row);
+  });
+}
+
+function enhanceThemeEditor() {
+  const modal = document.getElementById('functionCardsModal');
+  const themeForm = document.getElementById('functionThemeForm');
+  if (!modal || !themeForm || themeForm.querySelector('[value="rust"]')) return;
+  const options = themeForm.querySelector('.theme-options');
+  if (options) {
+    const label = document.createElement('label'); label.className = 'theme-option';
+    label.innerHTML = '<input type="radio" name="card_theme" value="rust"><span class="theme-swatch rust-swatch"></span><span>Rust</span>';
+    options.appendChild(label);
+  }
+  const grid = document.createElement('div'); grid.className = 'form-grid card-theme-extra';
+  const inherit = document.createElement('label'); inherit.className = 'wide';
+  inherit.innerHTML = '<span><input type="checkbox" name="inherit_theme" checked> Inherit hub theme</span>';
+  const icon = document.createElement('label'); icon.className = 'wide';
+  icon.innerHTML = '<span>Card icon or emoji<input name="icon" maxlength="8" placeholder="e.g. ★"></span>';
+  grid.append(inherit, icon); themeForm.appendChild(grid);
+  const preview = document.createElement('div'); preview.className = 'theme-preview'; preview.textContent = 'Live card preview'; themeForm.appendChild(preview);
+  themeForm.addEventListener('change', event => {
+    if (event.target.name === 'card_theme') {
+      document.getElementById('ccCard')?.classList.remove('paper', 'night', 'moss', 'rust');
+      document.getElementById('ccCard')?.classList.add(event.target.value);
+      preview.className = `theme-preview ${event.target.value}`;
+    }
+  });
+}
+
+function enhanceFunctionOverview(modal) {
+  const list = modal.querySelector('#functionCardList');
+  if (!list || list.querySelector('.function-card-search')) return;
+  const search = document.createElement('input');
+  search.className = 'function-card-search'; search.type = 'search'; search.placeholder = 'Search cards';
+  list.before(search);
+  search.addEventListener('input', () => {
+    const query = search.value.trim().toLowerCase();
+    list.querySelectorAll('.function-card-choice').forEach(choice => { choice.hidden = query && !choice.textContent.toLowerCase().includes(query); });
+  });
+  const actions = document.createElement('div'); actions.className = 'function-card-actions';
+  const duplicate = document.createElement('button'); duplicate.type = 'button'; duplicate.className = 'btn btn-ghost'; duplicate.textContent = 'Duplicate selected card'; duplicate.disabled = true;
+  const reorderForm = document.createElement('form'); reorderForm.method = 'post'; reorderForm.action = '/cards/reorder/';
+  const csrf = modal.querySelector('input[name="csrfmiddlewaretoken"]'); if (csrf) reorderForm.appendChild(csrf.cloneNode(true));
+  const saveOrder = document.createElement('button'); saveOrder.type = 'submit'; saveOrder.className = 'btn btn-ghost'; saveOrder.textContent = 'Save card order';
+  reorderForm.appendChild(saveOrder); actions.append(duplicate, reorderForm); list.after(actions);
+  let selected;
+  list.querySelectorAll('.function-card-choice').forEach(choice => {
+    choice.draggable = true;
+    choice.addEventListener('click', () => { selected = choice; duplicate.disabled = false; });
+  });
+  duplicate.addEventListener('click', () => {
+    if (!selected) return;
+    const form = document.createElement('form'); form.method = 'post'; form.action = `/cards/${selected.dataset.cardId}/duplicate/`;
+    if (csrf) form.appendChild(csrf.cloneNode(true)); document.body.appendChild(form); form.submit();
+  });
+  reorderForm.addEventListener('submit', () => {
+    reorderForm.querySelectorAll('input[name="card_order"]').forEach(input => input.remove());
+    list.querySelectorAll('.function-card-choice').forEach(choice => { const input = document.createElement('input'); input.type = 'hidden'; input.name = 'card_order'; input.value = choice.dataset.cardId; reorderForm.appendChild(input); });
+  });
+  let dragged;
+  list.addEventListener('dragstart', event => { dragged = event.target.closest('.function-card-choice'); });
+  list.addEventListener('dragover', event => { event.preventDefault(); const target = event.target.closest('.function-card-choice'); if (target && target !== dragged) list.insertBefore(dragged, target); });
+}
+
 function bindCards() {
 
   document.querySelectorAll('.social-icon').forEach(icon => icon.addEventListener('click', event => event.stopPropagation()));
+  const customizationData = document.getElementById('hubCustomizationData');
+  const accountTheme = document.getElementById('ccCard')?.className.split(' ').find(theme => ['paper', 'night', 'moss', 'rust'].includes(theme)) || 'paper';
   document.querySelectorAll('.card:not(.ghost)').forEach(card => {
+    const customization = customizationData?.querySelector(`span[data-card-id="${card.dataset.cardId}"]`);
+    if (customization) {
+      if (customization.dataset.icon) card.querySelector('.card-mark').textContent = customization.dataset.icon;
+      if (customization.dataset.inheritTheme === 'true') {
+        card.classList.remove('paper', 'night', 'moss', 'rust');
+        card.classList.add(accountTheme);
+      }
+    }
     const deleteForm = card.querySelector('.card-delete');
     if (deleteForm) {
       const editButton = document.createElement('button');
@@ -143,6 +320,8 @@ function bindFunctionEditor() {
   const sections = modal.querySelectorAll('[data-function-section]');
   const tabs = modal.querySelectorAll('[data-function-tab]');
   const kind = modal.querySelector('#functionKind');
+  enhanceFunctionOverview(modal);
+  enhanceThemeEditor();
   const csrfToken = modal.querySelector('#functionCardForm input[name="csrfmiddlewaretoken"]');
   modal.querySelectorAll('#functionThemeForm, #functionSecurityForm').forEach(form => {
     if (csrfToken && !form.querySelector('input[name="csrfmiddlewaretoken"]')) form.prepend(csrfToken.cloneNode(true));
@@ -231,6 +410,16 @@ function bindFunctionEditor() {
     modal.querySelector('#deleteFunctionCard').disabled = false;
     modal.querySelectorAll('.function-card-choice').forEach(item => item.classList.toggle('selected', item === choice));
     kind.value = card.classList.contains('image') ? 'image' : card.classList.contains('media') ? 'video' : card.classList.contains('schedule') ? 'schedule' : 'link';
+    const customization = document.querySelector(`#hubCustomizationData span[data-card-id="${choice.dataset.cardId}"]`);
+    const themeForm = document.getElementById('functionThemeForm');
+    if (customization && themeForm) {
+      themeForm.querySelectorAll('[name="card_theme"]').forEach(input => { input.checked = input.value === customization.dataset.cardTheme; });
+      const inherit = themeForm.querySelector('[name="inherit_theme"]');
+      const icon = themeForm.querySelector('[name="icon"]');
+      if (inherit) inherit.checked = customization.dataset.inheritTheme === 'true';
+      if (icon) icon.value = customization.dataset.icon || '';
+    }
+    if (customization?.dataset.icon) card.querySelector('.card-mark').textContent = customization.dataset.icon;
     const savedSchedule = document.querySelector(`#scheduleData span[data-card-id="${choice.dataset.cardId}"]`)?.dataset.schedule;
     scheduleEntries.splice(0, scheduleEntries.length);
     if (savedSchedule) {
@@ -307,6 +496,7 @@ if (socialRows && addSocial) {
     const row = socialRows.querySelector('.social-row').cloneNode(true);
     row.querySelector('input').value = '';
     socialRows.appendChild(row);
+    enhanceCallingCardEditor();
   });
   socialRows.addEventListener('click', event => {
     if (!event.target.classList.contains('social-remove')) return;
@@ -328,4 +518,6 @@ function showToast(message) {
 
 bindModals();
 bindEditorTabs();
+enhanceCallingCardEditor();
+enhancePublicCallingCard();
 bindFunctionEditor();

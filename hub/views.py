@@ -26,15 +26,24 @@ def build_social_links(account):
 		'linkedin': 'https://linkedin.com/in/',
 		'tiktok': 'https://tiktok.com/@',
 		'youtube': 'https://youtube.com/@',
+		'discord': 'https://discord.com/users/',
+		'github': 'https://github.com/',
+		'behance': 'https://behance.net/',
+		'threads': 'https://threads.net/@',
+		'whatsapp': 'https://wa.me/',
+		'telegram': 'https://t.me/',
 	}
 	icons = {
 		'facebook': 'f', 'instagram': '◎', 'x': '𝕏',
-		'linkedin': 'in', 'tiktok': '♪', 'youtube': '▶',
+		'linkedin': 'in', 'tiktok': '♪', 'youtube': '▶', 'discord': 'dc',
+		'github': 'gh', 'behance': 'be', 'threads': '@', 'whatsapp': 'wa', 'telegram': 'tg',
 	}
 	links = []
 	for social in account.socials or []:
 		platform = social.get('platform', '')
 		handle = social.get('handle', '').strip()
+		if social.get('visible', True) is False:
+			continue
 		if not platform or not handle:
 			continue
 		parsed = urlparse(handle)
@@ -165,15 +174,20 @@ def profile(request):
 		if 'bio' in request.POST:
 			account.bio = request.POST.get('bio', '').strip()
 			update_fields.append('bio')
+		for field in ('display_handle', 'card_tagline', 'location', 'pronouns'):
+			if field in request.POST:
+				setattr(account, field, request.POST.get(field, '').strip())
+				update_fields.append(field)
 		if 'phone' in request.POST:
 			account.phone = request.POST.get('phone', '').strip()
 			update_fields.append('phone')
 		if 'social_platform' in request.POST:
 			platforms = request.POST.getlist('social_platform')
 			handles = request.POST.getlist('social_handle')
+			has_visibility_controls = any(key.startswith('social_visible_') for key in request.POST)
 			account.socials = [
-				{'platform': platform, 'handle': handle.strip()}
-				for platform, handle in zip(platforms, handles)
+				({'platform': platform, 'handle': handle.strip(), 'visible': request.POST.get(f'social_visible_{index}', 'on') != 'off'} if has_visibility_controls else {'platform': platform, 'handle': handle.strip()})
+				for index, (platform, handle) in enumerate(zip(platforms, handles))
 				if platform and handle.strip()
 			]
 			update_fields.append('socials')
@@ -191,6 +205,12 @@ def profile(request):
 		if 'card_email' in request.POST:
 			account.card_email = request.POST.get('card_email', '').strip().lower()
 			update_fields.append('card_email')
+		if 'card_visible_fields' in request.POST:
+			account.card_visible_fields = [field for field in request.POST.getlist('card_visible_fields') if field in ('phone', 'socials', 'school', 'email', 'location', 'pronouns')]
+			update_fields.append('card_visible_fields')
+		if 'card_visible_fields' in request.POST:
+			account.card_visible_fields = [field for field in request.POST.getlist('card_visible_fields') if field in ('phone', 'socials', 'school', 'email', 'location', 'pronouns')]
+			update_fields.append('card_visible_fields')
 		if not account.full_name:
 			messages.error(request, 'Your full name is required.')
 		else:
@@ -218,6 +238,12 @@ def card(request):
 		if 'card_role' in request.POST:
 			account.card_role = request.POST.get('card_role', '').strip()
 			update_fields.append('card_role')
+		if 'display_handle' in request.POST:
+			account.display_handle = request.POST.get('display_handle', '').strip()
+			update_fields.append('display_handle')
+		if 'card_tagline' in request.POST:
+			account.card_tagline = request.POST.get('card_tagline', '').strip()
+			update_fields.append('card_tagline')
 		if 'card_email' in request.POST:
 			account.card_email = request.POST.get('card_email', '').strip().lower()
 			update_fields.append('card_email')
@@ -351,10 +377,12 @@ def update_function_card(request, card_id):
 		if kind == 'media':
 			kind = 'video'
 		card.kind = kind
-		card.title = request.POST.get('title', '').strip()
-		card.subtitle = request.POST.get('subtitle', '').strip()
-		card.destination = request.POST.get('destination', '').strip()
-		card.card_theme = request.POST.get('card_theme', 'paper')
+		card.title = request.POST.get('title', card.title).strip()
+		card.subtitle = request.POST.get('subtitle', card.subtitle).strip()
+		card.destination = request.POST.get('destination', card.destination).strip()
+		card.card_theme = request.POST.get('card_theme', card.card_theme)
+		card.inherit_theme = request.POST.get('inherit_theme') == 'on'
+		card.icon = request.POST.get('icon', '').strip()[:8]
 		schedule_payload = request.POST.get('schedule_json', '')
 		try:
 			if schedule_payload:
@@ -389,6 +417,31 @@ def update_function_card(request, card_id):
 			card.password_hash = ''
 		card.save()
 		messages.success(request, 'Function card updated.')
+	return redirect('hub')
+
+
+def duplicate_card(request, card_id):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	if request.method == 'POST':
+		card = HubCard.objects.filter(id=card_id, account=account).first()
+		if card:
+			card.pk = None
+			card.title = f'{card.title} copy'[:100]
+			card.order = account.cards.count()
+			card.save()
+			messages.success(request, 'Function card duplicated.')
+	return redirect('hub')
+
+
+def reorder_cards(request):
+	account = get_session_account(request)
+	if not account:
+		return redirect('login')
+	if request.method == 'POST':
+		for position, card_id in enumerate(request.POST.getlist('card_order')):
+			HubCard.objects.filter(id=card_id, account=account).update(order=position)
 	return redirect('hub')
 
 

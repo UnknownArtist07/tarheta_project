@@ -166,6 +166,22 @@ class HubWorkflowTests(TestCase):
 		self.assertEqual(self.account.card_title, 'Juan')
 		self.assertEqual(self.account.card_theme, 'moss')
 
+	def test_profile_customization_fields_and_social_visibility_are_saved(self):
+		self.client.post('/profile/', {
+			'full_name': 'Juan Dela Cruz', 'display_handle': '@juan', 'card_tagline': 'Available for freelance',
+			'location': 'Manila, Philippines', 'pronouns': 'they/them', 'card_visible_fields': ['phone', 'location'],
+			'social_platform': ['github', 'discord'], 'social_handle': ['juan', 'juan#1234'],
+			'social_visible_0': 'on', 'social_visible_1': 'off',
+		})
+
+		self.account.refresh_from_db()
+		self.assertEqual(self.account.display_handle, '@juan')
+		self.assertEqual(self.account.card_tagline, 'Available for freelance')
+		self.assertEqual(self.account.location, 'Manila, Philippines')
+		self.assertEqual(self.account.card_visible_fields, ['phone', 'location'])
+		self.assertEqual(self.account.socials[0]['platform'], 'github')
+		self.assertFalse(self.account.socials[1]['visible'])
+
 	def test_function_card_editor_replaces_inline_controls(self):
 		HubCard.objects.create(account=self.account, title='Portfolio', kind='link', destination='https://example.com')
 
@@ -209,6 +225,31 @@ class HubWorkflowTests(TestCase):
 
 		card.refresh_from_db()
 		self.assertEqual(card.schedule, schedule)
+
+	def test_function_card_saves_theme_inheritance_and_icon(self):
+		card = HubCard.objects.create(account=self.account, title='Portfolio', kind='link')
+
+		self.client.post(f'/cards/{card.id}/update-function/', {
+			'kind': 'link', 'card_theme': 'rust', 'inherit_theme': 'on', 'icon': '★',
+		})
+
+		card.refresh_from_db()
+		self.assertEqual(card.card_theme, 'rust')
+		self.assertTrue(card.inherit_theme)
+		self.assertEqual(card.icon, '★')
+
+	def test_function_card_can_be_duplicated_and_reordered(self):
+		first = HubCard.objects.create(account=self.account, title='First', order=0)
+		second = HubCard.objects.create(account=self.account, title='Second', order=1)
+
+		self.client.post(f'/cards/{first.id}/duplicate/')
+		self.assertTrue(HubCard.objects.filter(account=self.account, title='First copy').exists())
+		self.client.post('/cards/reorder/', {'card_order': [str(second.id), str(first.id)]})
+
+		first.refresh_from_db()
+		second.refresh_from_db()
+		self.assertEqual(second.order, 0)
+		self.assertEqual(first.order, 1)
 
 	def test_function_card_theme_upload_accepts_cover_image(self):
 		card = HubCard.objects.create(account=self.account, title='Cover card', kind='link')

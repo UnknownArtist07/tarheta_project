@@ -46,6 +46,6 @@
   <div class="modal-panel"><button class="modal-close" type="button" data-close-modal aria-label="Close subscription">×</button><div class="modal-kicker">TARHETA PLANS</div><h2 id="subscriptionTitle">Subscription</h2><p class="modal-intro">Choose the plan that fits the way you share.</p><div class="plan-list">{% for plan in plans %}<article class="plan-card{% if subscription and subscription.plan_id == plan.id %} current{% endif %}"><div class="plan-head"><h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong></div><ul>{% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}</ul>{% if subscription and subscription.plan_id == plan.id %}<span class="plan-current">Current plan</span>{% else %}<button class="btn btn-ghost" type="button" disabled>Upgrade <small>Coming soon</small></button>{% endif %}</article>{% endfor %}</div></div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="{% static 'hub/hub.js' %}?v=20260916"></script><script>bindCards();</script>
+<script src="{% static 'hub/hub.js' %}?v=20260917"></script><script>bindCards();</script>
 </body>
 </html>

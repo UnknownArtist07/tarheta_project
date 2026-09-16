@@ -358,6 +358,18 @@ class HubWorkflowTests(TestCase):
 		self.account.refresh_from_db()
 		self.assertEqual(self.account.hub_view_count, 1)
 
+	def test_public_schedule_card_exposes_saved_schedule(self):
+		HubCard.objects.create(
+			account=self.account, title='Class schedule', kind='schedule',
+			schedule=[{'day': 'Monday', 'subject': 'Math', 'time': '09:00'}],
+		)
+		self.client.get('/logout/')
+
+		response = self.client.get('/u/juandelacruz/')
+
+		self.assertContains(response, 'data-schedule=')
+		self.assertContains(response, 'Math')
+
 	def test_private_hub_shows_private_message_to_visitors(self):
 		self.account.hub_is_public = False
 		self.account.save(update_fields=['hub_is_public'])

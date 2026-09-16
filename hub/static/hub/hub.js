@@ -47,11 +47,81 @@ function bindCards() {
     };
     card.onclick = event => {
       if (event.target.closest('.card-delete, .card-active, .card-edit')) return;
-      if (card.dataset.image) window.open(card.dataset.image, '_blank', 'noopener,noreferrer');
+        if (card.classList.contains('schedule')) {
+          const scheduleData = card.dataset.schedule || [...document.querySelectorAll('#publicScheduleData span')].find(item => item.dataset.title === card.dataset.msg)?.dataset.schedule;
+          openSchedulePanel(card.dataset.msg, scheduleData);
+        }
+        else if (card.dataset.image) window.open(card.dataset.image, '_blank', 'noopener,noreferrer');
       else if (card.dataset.href) window.open(card.dataset.href, '_blank', 'noopener,noreferrer');
       else showToast(card.dataset.msg);
     };
   });
+}
+
+function openSchedulePanel(title, scheduleJson) {
+    let modal = document.getElementById('publicScheduleModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'publicScheduleModal';
+      modal.className = 'modal-backdrop';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-labelledby', 'publicScheduleTitle');
+      modal.innerHTML = '<div class="modal-panel"><button class="modal-close" type="button" aria-label="Close class schedule">×</button><div class="modal-kicker">CLASS SCHEDULE</div><h2 id="publicScheduleTitle">Class schedule</h2><p class="modal-intro">Keep track of the classes added to this card.</p><div class="schedule-list" id="publicScheduleList"></div></div>';
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => { modal.hidden = true; document.body.style.overflow = ''; });
+      modal.addEventListener('click', event => { if (event.target === modal) { modal.hidden = true; document.body.style.overflow = ''; } });
+    }
+    const heading = modal.querySelector('#publicScheduleTitle');
+    const list = modal.querySelector('#publicScheduleList');
+    let entries = [];
+    try {
+      const parsed = JSON.parse(scheduleJson || '[]');
+      entries = Array.isArray(parsed) ? parsed : parsed && typeof parsed === 'object' ? [parsed] : [];
+    } catch (error) { entries = []; }
+    heading.textContent = title;
+    list.innerHTML = '';
+    if (!entries.length) {
+      const empty = document.createElement('p');
+      empty.className = 'form-help';
+      empty.textContent = 'No classes have been added yet.';
+      list.appendChild(empty);
+    } else {
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const days = [...new Set(entries.map(entry => entry.day || 'Other'))].sort((left, right) => {
+        const leftIndex = dayOrder.indexOf(left);
+        const rightIndex = dayOrder.indexOf(right);
+        return (leftIndex < 0 ? dayOrder.length : leftIndex) - (rightIndex < 0 ? dayOrder.length : rightIndex);
+      });
+      days.forEach(day => {
+        const group = document.createElement('div');
+        group.className = 'schedule-day-group';
+        const dayHeading = document.createElement('h4');
+        dayHeading.textContent = day;
+        group.appendChild(dayHeading);
+        entries.filter(entry => (entry.day || 'Other') === day).forEach(entry => {
+          const row = document.createElement('div');
+          row.className = 'schedule-entry';
+          const details = document.createElement('div');
+          const subject = document.createElement('strong');
+          subject.textContent = entry.subject || 'Untitled subject';
+          const time = document.createElement('span');
+          time.textContent = `${entry.time || 'Time not set'}${entry.professor ? ` · ${entry.professor}` : ''}`;
+          details.append(subject, time);
+          if (entry.description) {
+            const description = document.createElement('small');
+            description.textContent = entry.description;
+            details.appendChild(description);
+          }
+          row.appendChild(details);
+          group.appendChild(row);
+        });
+        list.appendChild(group);
+      });
+    }
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
 
   const addCard = document.getElementById('addCard');
   if (addCard) addCard.addEventListener('click', () => {
@@ -65,7 +135,6 @@ function bindCards() {
     kind.addEventListener('change', updateVisibility);
     updateVisibility();
   });
-}
 
 function bindFunctionEditor() {
   const modal = document.getElementById('functionCardsModal');
@@ -161,7 +230,7 @@ function bindFunctionEditor() {
     modal.querySelector('#deleteFunctionCardForm').action = `/cards/${choice.dataset.cardId}/delete-function/`;
     modal.querySelector('#deleteFunctionCard').disabled = false;
     modal.querySelectorAll('.function-card-choice').forEach(item => item.classList.toggle('selected', item === choice));
-    kind.value = card.classList.contains('image') ? 'image' : card.classList.contains('media') ? 'video' : 'link';
+    kind.value = card.classList.contains('image') ? 'image' : card.classList.contains('media') ? 'video' : card.classList.contains('schedule') ? 'schedule' : 'link';
     const savedSchedule = document.querySelector(`#scheduleData span[data-card-id="${choice.dataset.cardId}"]`)?.dataset.schedule;
     scheduleEntries.splice(0, scheduleEntries.length);
     if (savedSchedule) {
